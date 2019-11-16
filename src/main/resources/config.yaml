@@ -1,0 +1,8 @@
+sfdc:
+  username: kuldeepapisero@apisero.com
+  password: Outlook@06
+  token: 3E2WdKCRSTtT12hhZwTCoq9pM
+
+http:
+  port: "8081"
+  

@@ -1,0 +1,56 @@
+#%RAML 1.0
+baseUri: https://anypoint.mulesoft.com/mocking/api/v1/links/17780644-07bf-4ddf-bf1f-7ab395a00dbd/ # 
+title: lazyFashion
+
+types:
+  fashionable: !include dataType/dataType.raml
+
+/fashion:
+  post:
+    body:
+      application/json:
+        type: fashionable
+        examples:
+          output: !include examples/fashionNOID.raml
+    responses:
+      201:
+        body:
+          application/json:
+            examples:
+              "message" : "Customer information added"
+              
+  get:
+    queryParameters:
+      customer:
+        required: false
+    responses:
+      200:
+        body:
+          application/json:
+            type: fashionable[]
+            examples:
+              output: !include examples/fashion.raml
+  /{ID}:
+    put:
+      body:
+        application/json:
+          type: fashionable
+          examples:
+            output: !include examples/fashionNOID.raml
+      responses:
+        200:
+          body:
+            application/json:
+              example:
+                "message": "Customer information updated (not really)"
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: fashionable
+              examples:
+                output: !include examples/fashionID.raml
+                
+  
+

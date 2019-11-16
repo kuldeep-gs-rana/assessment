@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+    <http:listener-config name="lazyfashion-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${http.port}" />
+    </http:listener-config>
+    <apikit:config name="lazyfashion-config" api="lazyfashion.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="e6d0ebcb-b813-4897-af7b-dd3f89cc61a7" >
+		<salesforce:cached-basic-connection username="${sfdc.username}" password="${sfdc.password}" securityToken="${sfdc.token}" />
+	</salesforce:sfdc-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="d7ea847e-1f32-4430-930b-9f5c2df148fd" file="config.yaml" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="057f8dfb-11ca-4b25-b661-55afb342de99" >
+		<db:oracle-connection host="localhost" user="SYSTEM" password="test" serviceName="xe"/>
+	</db:config>
+	<flow name="lazyfashion-main">
+        <http:listener config-ref="lazyfashion-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="lazyfashion-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="lazyfashion-console">
+        <http:listener config-ref="lazyfashion-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="lazyfashion-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="put:\fashion\(ID):application\json:lazyfashion-config">
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="ID">attributes.uriParams.'ID'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Customer information updated (not really)"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\fashion:lazyfashion-config">
+		<salesforce:query doc:name="Retrieving data rom salesforce" doc:id="e5cbccf1-d3db-4487-870f-39bb50ef016f" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query >SELECT Name, LastModifiedDate, BillingPostalCode, BillingCountry
+FROM Account</salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transforming to insert into database" doc:id="b2b05544-4deb-4471-9b9f-a5d6c68bf193" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload  map {
+	
+		Name: $.Name,
+		LastModifiedDate: $.LastModifiedDate,
+		BillingPostalCode: $.BillingPostalCode,
+		BillingCountry: $.BillingCountry
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="31fb85f1-d4be-4e36-82b3-fe418ac09fb6" >
+			<db:insert doc:name="Inserting into local database. oracle database" doc:id="dadc5377-fead-412b-b02c-831bec6aa169" config-ref="Database_Config">
+			<db:sql>INSERT INTO Employee2( Name, LastModifiedDate, BillingPostalCode, BillingCountry)
+VALUES(:Name, :LastModifiedDate, :BillingPostalCode, :BillingCountry)</db:sql>
+				<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+		</db:insert>
+		</foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="25526213-55c9-4047-bd11-4ba43501a0ca" message="#[payload]"/>
+    </flow>
+    <flow name="get:\fashion\(ID):lazyfashion-config">
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="ID">attributes.uriParams.'ID'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  id: "1",
+  name: {
+    firstName: "Kuldeep",
+    lastName: "rana"
+  },
+  age: 24,
+  address: "Dehradun"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="post:\fashion:application\json:lazyfashion-config">
+		<salesforce:create type="Account" doc:name="Create" doc:id="42bef58b-d8b6-429a-a145-034ddc22673e" config-ref="Salesforce_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="1546135e-1318-493e-9cff-aadc219ec56c" message="#[payload]"/>
+    </flow>
+</mule>
